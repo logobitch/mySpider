@@ -1,6 +1,8 @@
 <?php
 namespace Spider;
 
+use App\Model\SpiderModel;
+
 Class Spider
 {
     private $agent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.99 Safari/537.36 OPR/41.0.2353.69';
@@ -12,6 +14,7 @@ Class Spider
     public $spiderType = 'curl';
 
     public $contentList = '';
+    public $linkList = array();
 
     public function __construct()
     {
@@ -37,15 +40,68 @@ Class Spider
         return $this->contentList;
     }
 
-    public function getContentItems($list='', $source=array(), $type='') {
+    public function getLinkList($source=array(), $list='') {
         if($list == '') {
             return array();
         }
         $listArr = explode($source['list_separator'], $list);
         foreach($listArr as $list) {
             $links = $this->_parseLink($list);
-            foreach($links as  $link => $title) {
+
+            foreach($links as $link => $title) {
                 $link = $this->_formatUrl($source['list_url'], $link);
+
+                if(isset($source['url_function']) && function_exists($source['url_function'])) {
+                    $link = $source['url_function']($link);
+                }
+                if(! $link) {
+                    continue;
+                }
+                $this->linkList[] = [
+                    'title' => $title,
+                    'link'  => $link
+                ];
+            }
+        }
+        $this->linkList = array_reverse($this->linkList);
+        if(isset($source['list_shuffle'])) {
+            shuffle($this->linkList);
+        }
+        return $this->linkList;
+    }
+
+    public function getItems($source, $links, $type='curl') {
+        //从配置中读取信息
+        $rules = array();
+        foreach($source as $key => $value) {
+            if(preg_match('/^output_(\w+)/', $key, $match)) {
+                $rules[$match[1]] = $value;
+            }
+        }
+
+        $items = array();
+        //从规则中抓取相关信息
+        foreach($links as $link) {
+            $item = $this->getItem($source, $link, $type);
+
+            //处理正文内容
+            if(isset($item['content']) && !empty($item['content'])) {
+                $item['content'] = $this->_clearContentAttribute($item['content']);
+            }
+            $item = array_merge($item, $rules);
+
+            $items[] = $item;
+        }
+
+        return $items;
+    }
+
+    public function saveSpiderItem($items) {
+        foreach($items as $item) {
+            $ret = SpiderModel::create($item);
+            if(! $ret) {
+                $msg = 'spider data into database error!!'.json_encode($item);
+                $this->_logWrite($msg);
             }
         }
     }
@@ -69,6 +125,33 @@ Class Spider
         return $this->source_list;
     }
 
+    private function _clearContentAttribute($html) {
+        $html = preg_replace("/<script>.*<\/script>/is", '', $html);
+        $html = strip_tags($html, '<br><p><img><table><td><tr>');
+        $html = preg_replace("/<p[^>]*>/i", '<p>', $html);
+        $html = preg_replace("/<\/p>/i", '</p>', $html);
+        $html = preg_replace("/<!--.*-->/", '', $html);
+        $html = preg_replace("/<p>\s*<\/p>/", '', $html);
+        return $html;
+    }
+
+    private function getItem($source, $link, $type){
+        $content = $this->_readFromUrl($link['link'], $type);
+        $output = array();
+        for($i=1; $i<20; $i++) {
+            if(!isset($source['start'.$i]) || !isset($source['end'.$i]) || empty($source['start'.$i]) || empty($source['end'.$i])) {
+                break;
+            }
+            $field_start = $source['start'.$i];
+            $field_end = $source['end'.$i];
+
+            preg_match("/$field_start(.*)$field_end/m", $content, $match);
+
+            $output[$source['field'.$i]] = $match[1];
+        }
+        return $output;
+    }
+
     private function _parseLink($list) {
         $html = strip_tags($list, '<a><title><link>');
         preg_match_all("/<\s*a.*?href\s*=(.+?)(\s+.*?)?>(.*?)<\s*\/a\s*>/isx", $html, $matchs);
@@ -78,8 +161,7 @@ Class Spider
         foreach($matchs[1] as $key => $link) {
             $link = str_replace('\'', '', $link);
             $link = str_replace('"', '', $link);
-            $title = $matchs[3][$key];
-            $links[$link] = $title;
+            $links[$link] = '';
         }
         foreach($matchs2[2] as $key => $link) {
             $link = str_replace('\'', '', $link);
@@ -310,5 +392,10 @@ Class Spider
     private function _triggerError($msg = '发生错误！')
     {
         exit($msg);
+    }
+
+    private function _logWrite($msg, $logFile='insert_error.log') {
+        $msg = date('Y-m-d H:i:s', time()).$msg;
+        error_log($msg."\n\n", 3, '/var/log/nginx/spider/'.$logFile.date('Y-m-d'));
     }
 }

@@ -1,6 +1,12 @@
 <?php
 use Spider\Spider;
 
+function hello($s) {
+    if(preg_match("/\w+\/\d+\.html$/", $s, $ma)) {
+        return $s;
+    }
+    return false;
+}
 
 require __DIR__ . '/../../public/index.php';
 
@@ -15,7 +21,9 @@ $sourceList = $test->getSourceList();
 foreach($sourceList as $list) {
     $list_content = $test->getContentList($list);
 
-    $items = $test->getContentItems($list_content, $list);
+    $links = $test->getLinkList($list, $list_content);
 
+    $items = $test->getItems($list, $links);
+        
 }
 
