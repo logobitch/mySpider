@@ -21,6 +21,29 @@ Class Spider
         $this->sources_path = __DIR__ . '/../../' . $this->sources_path;
     }
 
+    public function daemon() {
+        $sourceList = $this->getSourceList();
+        if(empty($sourceList)) {
+            $this->_triggerError('配置信息为空! 请检查');
+        }
+        foreach($sourceList as $source) {
+            $listContent = $this->getContentList($source);
+
+            $links = $this->getLinkList($source, $listContent);
+
+            $items = $this->getItems($source, $links);
+
+//            var_dump($items);
+            $this->saveSpiderItem($items);
+        }
+    }
+
+    /**
+     * @description 获取界面内容
+     * @param array $source
+     * @param string $type
+     * @return string
+     */
     public function getContentList($source=array(), $type='')
     {
         if (!isset($source['list_url']) || empty($source['list_url'])) {
@@ -40,6 +63,12 @@ Class Spider
         return $this->contentList;
     }
 
+    /**
+     * @description 获取抓取链接地址
+     * @param array $source
+     * @param string $list
+     * @return array
+     */
     public function getLinkList($source=array(), $list='') {
         if($list == '') {
             return array();
@@ -70,6 +99,13 @@ Class Spider
         return $this->linkList;
     }
 
+    /**
+     * @description 从链接中获取item数据
+     * @param $source
+     * @param $links
+     * @param string $type
+     * @return array
+     */
     public function getItems($source, $links, $type='curl') {
         //从配置中读取信息
         $rules = array();
@@ -96,6 +132,10 @@ Class Spider
         return $items;
     }
 
+    /**
+     * @description 保存界面数据
+     * @param $items
+     */
     public function saveSpiderItem($items) {
         foreach($items as $item) {
             $ret = SpiderModel::create($item);
@@ -106,8 +146,11 @@ Class Spider
         }
     }
 
-    public function getSourceList()
-    {
+    /**
+     * @description 从文件读取抓取配置
+     * @return array
+     */
+    public function getSourceList() {
         if (!file_exists($this->sources_path)) {
             $this->_triggerError('抓取文件目录不存在');
         }
@@ -137,6 +180,8 @@ Class Spider
 
     private function getItem($source, $link, $type){
         $content = $this->_readFromUrl($link['link'], $type);
+        $content = str_replace("\r", '', $content);
+
         $output = array();
         for($i=1; $i<20; $i++) {
             if(!isset($source['start'.$i]) || !isset($source['end'.$i]) || empty($source['start'.$i]) || empty($source['end'.$i])) {
@@ -144,10 +189,14 @@ Class Spider
             }
             $field_start = $source['start'.$i];
             $field_end = $source['end'.$i];
+            $field = $source['field'.$i];
 
-            preg_match("/$field_start(.*)$field_end/m", $content, $match);
+            if(! preg_match("#$field_start(.*?)$field_end#s", $content, $match)) {
+                $msg = "其中的  >>{$field}<<  字段抓取失败!";
+                $this->_logWrite($msg);
+            }
 
-            $output[$source['field'.$i]] = $match[1];
+            $output[$field] = isset($match[1]) ? $match[1] : '';
         }
         return $output;
     }

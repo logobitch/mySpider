@@ -10,6 +10,8 @@ namespace App\Model;
 use Illuminate\Database\Eloquent\Model;
 
 Class SpiderModel extends Model {
+
+    protected $primaryKey = 'spider_id';
     protected $table = 'spider';
 //    public $timestamps = false;
 
@@ -18,6 +20,7 @@ Class SpiderModel extends Model {
         'desc',
         'author',
         'editor',
+        'content',
     );
 
 }

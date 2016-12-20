@@ -8,22 +8,9 @@ function hello($s) {
     return false;
 }
 
-require __DIR__ . '/../../public/index.php';
-
-$test = new Spider();
-$sourceList = $test->getSourceList();
-
-//Spider::getSourceList();
-//Spider::getContentList();
-//Spider::getItems();
+require __DIR__ . '/../../src/bootstrap.php';
 
 
-foreach($sourceList as $list) {
-    $list_content = $test->getContentList($list);
-
-    $links = $test->getLinkList($list, $list_content);
-
-    $items = $test->getItems($list, $links);
-        
-}
+$spider = new Spider();
+$spider->daemon();
 
