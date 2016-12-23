@@ -8,7 +8,7 @@
 namespace App\Model;
 use Illuminate\Database\Eloquent\Model;
 
-class TextModel extends Model {
+class Text extends Model {
     protected $table = 'texts';
     protected $primaryKey = 'text_id';
 

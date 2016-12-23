@@ -1,7 +1,7 @@
 <?php
 namespace SP\Spider;
 
-use App\Model\ItemModel;
+use App\Model\Item;
 use App\Model\SpideredModel;
 use SP\Common\Error;
 use SP\Common\ReadUrl;
@@ -161,7 +161,8 @@ Class Spider
                 continue;
             }
 
-            $spiderId = ItemModel::createNewItem($item);
+            $itemModel = new Item();
+            $spiderId = $itemModel->createNewItem($item);
             if (!$spiderId) {
                 //插入记录
                 $msg = '抓取到的内容存储失败!'.json_encode($item);
