@@ -1,9 +1,9 @@
 <?php
 /**
- * File: SpideredModel.php
+ * File: SpiderModel.php
  * User: zhoucong@yongche.com
- * Date: 16/12/21
- * Time: 上午10:25
+ * Date: 16/12/16
+ * Time: 上午11:54
  */
 namespace App\Model;
 

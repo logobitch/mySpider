@@ -1,7 +1,7 @@
 <?php
 namespace SP\Spider;
 
-use App\Model\SpiderModel;
+use App\Model\ItemModel;
 use App\Model\SpideredModel;
 use SP\Common\Error;
 use SP\Common\ReadUrl;
@@ -39,8 +39,6 @@ Class Spider
             $items = $this->getItems($source, $links);
 
             $this->saveSpiderItem($items);
-
-
         }
     }
 
@@ -155,9 +153,16 @@ Class Spider
     public function saveSpiderItem($items)
     {
         foreach ($items as $item) {
-            $ret = SpiderModel::create($item);
-            $spiderId = $ret->spider_id;
-            if (!$ret) {
+            //如果没有抓取到title,则认为本次的抓取不成功
+            if(!isset($item['title']) || empty($item['title'])) {
+                $this->saveSpiderHistory($item['url'], -1);
+                $msg = "文章标题抓取失败!认定该次抓取不成功!". json_encode($item);
+                Error::logWrite($msg);
+                continue;
+            }
+
+            $spiderId = ItemModel::createNewItem($item);
+            if (!$spiderId) {
                 //插入记录
                 $msg = '抓取到的内容存储失败!'.json_encode($item);
                 Error::logWrite($msg);
@@ -191,7 +196,7 @@ Class Spider
     }
 
     /**
-     * 是否进行采集过对应的url,可容错
+     * 是否进行采集过对应的url
      * @param $url
      * @return bool
      */
@@ -199,10 +204,7 @@ Class Spider
     {
         $urlKey = md5($url);
         $spiderItem = SpideredModel::where('spidered_key', $urlKey)->first();
-        if($spiderItem) {
-           if($spiderItem['content_id'] < 0 && $spiderItem['content_id'] > $this->spider_error_num) {
-               return false;
-           }
+        if($spiderItem && $spiderItem->content_id > 0) {
            return true;
         }
         return false;
@@ -221,12 +223,12 @@ Class Spider
             $data = array(
                 'url' => $url,
                 'spidered_key' => $spiderKey,
-                'content_id' => $spider_id
+                'content_id'   => $spider_id,
             );
             SpideredModel::create($data);
         } else {
             //update
-            if($spideredItem->content_id < 0) {
+            if($spider_id < 0) {
                 $spideredItem->content_id  -= 1;
             } else {
                 $spideredItem->content_id = $spider_id;
