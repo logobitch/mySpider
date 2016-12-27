@@ -1,7 +1,13 @@
 <?php
 
 return array(
-    'list_url' => 'http://www.430001.com/category/2.html',
+    'list_url' => 'http://www.430001.com/category/2-[0-9].html',
+//    'list_urls' => array(
+//        'http://www.430001.com/category/2[0-9].html',
+//        'http://www.430001.com/category/3[0-9].html',
+//        'http://www.430001.com/category/4[0-9].html',
+//        'http://www.430001.com/category/5[0-9].html',
+//    ),
     'name'  => 'dengluxinsanban',
     'ext' => '',
     'list_start' => '<div class=\"newsbox newsbox_infor\">',
@@ -17,7 +23,7 @@ return array(
     'end3'   => '<div class=\"attach\">',
 
     'field1' => 'title',
-    'field2' => 'desc',
+    'field2' => 'source',
     'field3' => 'content',
 
     'output_sub_title' => 'this is sub title',

@@ -16,4 +16,8 @@ class Text extends Model {
         'item_id',
         'content',
     );
+    
+    public function content() {
+        return $this->belongsTo('App\Model\Item');
+    }
 }

@@ -1,4 +1,5 @@
 <?php
+set_time_limit(0);
 use SP\Spider\Spider;
 
 function hello($s) {

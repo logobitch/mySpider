@@ -10,7 +10,6 @@ Class Spider
 {
     private $sources_path = 'config/spiders/';
     private $source_list = array();
-    private $spider_error_num = -5; //抓取同一url允许失败的次数
 
     public $spiderType = 'curl';
 
@@ -186,12 +185,33 @@ Class Spider
         $sources = array();
         foreach ($sourcesList as $source) {
             if (preg_match('/^,.*\.php/', $source)) {
-                $tmp = require $this->sources_path . $source;
-                if (!empty($tmp)) {
-                    $sources[] = $tmp;
+                $sourceArr = require $this->sources_path . $source;
+                if(empty($sourceArr)) {
+                    continue;
+                }
+                $urls = array();
+                if(isset($sourceArr['list_urls'])) {
+                    $urls = $sourceArr['list_urls'];
+                    unset($sourceArr['list_urls']);
+                }
+                if(isset($sourceArr['list_url'])) {
+                    $urls[] = $sourceArr['list_url'];
+                }
+                //将分页数据进行拆分
+                foreach($urls as $url) {
+                    if(preg_match("/^(.*?)\[([0-9]+)-([0-9]+)\](.*?)$/", $url, $match)) {
+                        for($i=$match[2]; $i <= $match[3]; $i++) {
+                            $sourceArr['list_url'] = $match[1]. $i. $match[4];
+                            $sources[] = $sourceArr;
+                        }
+                    } else{
+                        $sourceArr['list_url'] = $url;
+                        $sources[] = $sourceArr;
+                    }
                 }
             }
         }
+
         $this->source_list = $sources;
         return $this->source_list;
     }
