@@ -9,7 +9,8 @@ namespace App\Controller;
 
 class ItemController {
     public function indexAction(){
-        $lists = \App\Model\SpiderModel::all()->toArray();
-        require __DIR__.'/test.html';
+        $lists = \App\Model\Item::getItemList();
+
+        return view('item/index', array('lists'=>$lists));
     }
 }

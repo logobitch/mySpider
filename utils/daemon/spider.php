@@ -3,8 +3,7 @@ set_time_limit(0);
 use SP\Spider\Spider;
 
 function hello($s) {
-    if(preg_match("/\w+\/\d+\.html$/", $s, $ma)) {
-        //$s = preg_replace('/430001/', '23', $s);
+    if(strpos($s, 'news')) {
         return $s;
     }
     return false;

@@ -8,12 +8,8 @@
 </head>
 <body>
     <?php foreach($lists as $list) { ?>
-    article start
-        <?php echo $list['title'];?>
-
-        <?php echo $list['content'];?>
-    ---------------<br/>
-    article end
+        <h1><?php echo $list['title'];?></h1><small><?php echo $list['item_id'];?></small>
+        <p><?php echo $list['content'];?></p>
     <?php } ?>
 </body>
 </html>

@@ -33,7 +33,7 @@ class Item extends Model {
         return $itemId;
     }
 
-    public function getItemList($page = 1) {
+    public static function getItemList($page = 1) {
         $items = self::all();
         foreach($items as $item) {
             $item['content'] = Text::where('item_id', $item['item_id'])->first()->content;

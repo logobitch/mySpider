@@ -121,7 +121,6 @@ Class Spider
                 $rules[$match[1]] = $value;
             }
         }
-
         $items = array();
         //从规则中抓取相关信息
         foreach ($links as $link) {
@@ -289,8 +288,12 @@ Class Spider
                 $msg = "其中的  >>{$field}<<  字段抓取失败!";
                 Error::logWrite($msg);
             }
-
             $output[$field] = isset($match[1]) ? $match[1] : '';
+            $output[$field] = str_replace('&nbsp;', ' ', $output[$field]);
+            $output[$field] = preg_replace('/<[a-z0-9]+>\s*<\/[a-z0-9]+>/is', ' ', $output[$field]);
+            $output[$field] = preg_replace('/^\s*/s', ' ', $output[$field]);
+            $output[$field] = preg_replace('/\s*$/s', ' ', $output[$field]);
+
         }
         return $output;
     }
