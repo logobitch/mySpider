@@ -3,6 +3,7 @@ namespace SP\Spider;
 
 use App\Model\Item;
 use App\Model\SpideredModel;
+use App\Model\Text;
 use SP\Common\Error;
 use SP\Common\ReadUrl;
 
@@ -28,13 +29,19 @@ Class Spider
             Error::triggerError('配置信息为空! 请检查');
         }
         foreach ($sourceList as $source) {
-            $listContent = $this->getContentList($source);
+            $listContent = $this->getListContent($source);
+            if (!empty($source['debug_list_content'])) {
+                Error::spiderDebug($listContent);
+            }
+
             if (!$listContent) {
                 continue;
             }
 
             $links = $this->getLinkList($source, $listContent);
-
+            if (!empty($source['debug_links'])) {
+                Error::spiderDebug(var_export($links));
+            }
             $items = $this->getItems($source, $links);
 
             $this->saveSpiderItem($items);
@@ -47,8 +54,9 @@ Class Spider
      * @param string $type
      * @return string
      */
-    public function getContentList($source = array(), $type = '')
+    public function getListContent($source = array(), $type = '')
     {
+        $source['ext'] = empty($source['ext']) ? '' : $source['ext'];
         if (!isset($source['list_url']) || empty($source['list_url'])) {
             $msg = 'spider list url is empty!' . json_encode($source);
             Error::logWrite($msg);
@@ -58,6 +66,9 @@ Class Spider
 
         $listStart = isset($source['list_start']) ? $source['list_start'] : '';
         $listEnd = isset($source['list_end']) ? $source['list_end'] : '';
+        if ((empty($listStart) && empty($listEnd)) || !empty($source['debug_url'])) {
+            Error::spiderDebug($listContent);
+        }
 
         if (!preg_match("/$listStart(.*)$listEnd/s", $listContent, $match)) {
             $msg = "can no preg anything from list !" . json_encode($source);
@@ -65,6 +76,7 @@ Class Spider
             return false;
         }
         $this->contentList = trim($match[1]);
+
         return $this->contentList;
     }
 
@@ -125,14 +137,18 @@ Class Spider
         $items = array();
         //从规则中抓取相关信息
         foreach ($links as $link) {
-            if($this->hasSpidered($link['link'])) {
-                $msg = "this url has been spidered::" . $link['link'] .'skip!!!';
+            if ($this->hasSpidered($link['link']) && !isset($source['debug_mode'])) {
+                $msg = "this url has been spidered::" . $link['link'] . 'skip!!!';
                 Error::logWrite($msg);
                 continue;
             }
 
             $item = $this->getItem($source, $link, $type);
 
+            if (!empty($source['debug_item'])) {
+                var_export($item);
+                die;
+            }
             //处理正文内容
             if (isset($item['content']) && !empty($item['content'])) {
                 $item['content'] = $this->_clearContentAttribute($item['content']);
@@ -153,9 +169,9 @@ Class Spider
     {
         foreach ($items as $item) {
             //如果没有抓取到title,则认为本次的抓取不成功
-            if(!isset($item['title']) || empty($item['title'])) {
+            if (!isset($item['title']) || empty($item['title'])) {
                 $this->saveSpiderHistory($item['url'], -1);
-                $msg = "文章标题抓取失败!认定该次抓取不成功!". json_encode($item);
+                $msg = "文章标题抓取失败!认定该次抓取不成功!" . json_encode($item);
                 Error::logWrite($msg);
                 continue;
             }
@@ -164,7 +180,7 @@ Class Spider
             $spiderId = $itemModel->createNewItem($item);
             if (!$spiderId) {
                 //插入记录
-                $msg = '抓取到的内容存储失败!'.json_encode($item);
+                $msg = '抓取到的内容存储失败!' . json_encode($item);
                 Error::logWrite($msg);
                 $spiderId = -1;
             }
@@ -186,25 +202,25 @@ Class Spider
         foreach ($sourcesList as $source) {
             if (preg_match('/^,.*\.php/', $source)) {
                 $sourceArr = require $this->sources_path . $source;
-                if(empty($sourceArr)) {
+                if (empty($sourceArr)) {
                     continue;
                 }
                 $urls = array();
-                if(isset($sourceArr['list_urls'])) {
+                if (isset($sourceArr['list_urls'])) {
                     $urls = $sourceArr['list_urls'];
                     unset($sourceArr['list_urls']);
                 }
-                if(isset($sourceArr['list_url'])) {
+                if (isset($sourceArr['list_url'])) {
                     $urls[] = $sourceArr['list_url'];
                 }
                 //将分页数据进行拆分
-                foreach($urls as $url) {
-                    if(preg_match("/^(.*?)\[([0-9]+)-([0-9]+)\](.*?)$/", $url, $match)) {
-                        for($i=$match[2]; $i <= $match[3]; $i++) {
-                            $sourceArr['list_url'] = $match[1]. $i. $match[4];
+                foreach ($urls as $url) {
+                    if (preg_match("/^(.*?)\[([0-9]+)-([0-9]+)\](.*?)$/", $url, $match)) {
+                        for ($i = $match[2]; $i <= $match[3]; $i++) {
+                            $sourceArr['list_url'] = $match[1] . $i . $match[4];
                             $sources[] = $sourceArr;
                         }
-                    } else{
+                    } else {
                         $sourceArr['list_url'] = $url;
                         $sources[] = $sourceArr;
                     }
@@ -225,8 +241,8 @@ Class Spider
     {
         $urlKey = md5($url);
         $spiderItem = SpideredModel::where('spidered_key', $urlKey)->first();
-        if($spiderItem && $spiderItem->content_id > 0) {
-           return true;
+        if ($spiderItem && $spiderItem->content_id > 0) {
+            return true;
         }
         return false;
     }
@@ -236,21 +252,22 @@ Class Spider
      * @param $url
      * @param $spider_id
      */
-    public function saveSpiderHistory($url, $spider_id) {
+    public function saveSpiderHistory($url, $spider_id)
+    {
         $spiderKey = md5($url);
         $spideredItem = SpideredModel::where('spidered_key', $spiderKey)->first();
-        if(!$spideredItem) {
+        if (!$spideredItem) {
             //新增
             $data = array(
                 'url' => $url,
                 'spidered_key' => $spiderKey,
-                'content_id'   => $spider_id,
+                'content_id' => $spider_id,
             );
             SpideredModel::create($data);
         } else {
             //update
-            if($spider_id < 0) {
-                $spideredItem->content_id  -= 1;
+            if ($spider_id < 0) {
+                $spideredItem->content_id -= 1;
             } else {
                 $spideredItem->content_id = $spider_id;
             }
@@ -268,12 +285,14 @@ Class Spider
         $html = preg_replace("/<p>\s*<\/p>/", '', $html);
         return $html;
     }
-    
+
     private function getItem($source, $link, $type)
     {
         $content = $this->_readFromUrl($link['link'], $type);
-        $content = str_replace("\r", '', $content);
 
+        if (isset($source['debug_item_content'])) {
+            Error::spiderDebug($content);
+        }
         $output = array(
             'url' => $link['link'],
         );
@@ -342,6 +361,9 @@ Class Spider
     {
         $readUrl = new ReadUrl();
         $htmlContent = $readUrl->readFromUrl($url, $ext, $type);
+
+        //for spider stat
+        $htmlContent = str_replace(array("\r", "\n"), array('', ''), $htmlContent);
         return $htmlContent;
     }
 }

@@ -7,8 +7,10 @@
  */
 use Illuminate\Database\Capsule\Manager as Capsule;
 
-require  __DIR__ . '/../vendor/autoload.php';
+require __DIR__ . '/../vendor/autoload.php';
 
 $capsule = new Capsule();
 $capsule->addConnection(require  __DIR__ . '/../config/database.php');
 $capsule->bootEloquent();
+
+error_reporting(E_ALL);
